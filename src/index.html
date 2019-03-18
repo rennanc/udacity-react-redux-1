@@ -6,6 +6,9 @@
     <title>Page Title</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/redux/3.7.2/redux.min.js"></script>
+    <script src="https://unpkg.com/react@16.3.0-alpha.1/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@16.3.0-alpha.1/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
 </head>
 <body>
     <div>
@@ -21,6 +24,8 @@
         <ul id="goals"></ul>
     </div>
     
+    <hr />
+    <div id="app" ></div>
 <script type='text/javascript'>
         // import React from 'react';
         // import ReactDOM from 'react-dom';
@@ -37,33 +42,6 @@
 
         function generateId(){
             return Math.random().toString(36).substring(2) + (new Date()).getTime().toString(36);
-        }
-
-        //Library Code
-        function createStore(reducer){
-            
-            let state
-            let listeners = []
-
-            const getState = () => state
-
-            const subscribe = (listener) => {
-                listeners.push(listener)
-                return () => {
-                    listeners = listeners.filter((l) => l !== listener)
-                }
-            }
-
-            const dispatch = (action) => {
-                state = reducer(state, action)
-                listeners.forEach((listener) => listener())
-            }
-
-            return {
-                getState,
-                subscribe,
-                dispatch,
-            }
         }
 
 
@@ -135,14 +113,37 @@
             }
         }
 
-        function app (state = {}, action){
-            return {
-                todos: todos(state.todos, action),
-                goals: goals(state.goals, action),
+        const checker = (store) => (next) => (action) => {
+            if(
+                action.type === ADD_TODO &&
+                action.todo.name.toLowerCase().includes('bitcoin')
+            ){
+                return alert("Nope. That's a bad idea.")
             }
+
+            if(
+                action.type === ADD_GOAL &&
+                action.goal.name.toLowerCase().includes('bitcoin')
+            ){
+                return alert("Nope. That's a bad idea.")
+            }
+
+            return next(action)
         }
 
-        const store = createStore(app)
+        const logger = (store) => (next) => (action) => {
+            console.group(action.type)
+                console.log('The action:', action)
+                const result = next(action)
+                console.log('the new state: ', store.getState())
+            console.groupEnd()
+            return result
+        }
+
+        const store = Redux.createStore(Redux.combineReducers({
+            todos,
+            goals,
+        }), Redux.applyMiddleware(checker, logger))
 
 
         store.subscribe(() => {
@@ -227,6 +228,72 @@
             document.getElementById('goals')
                 .appendChild(node)
         }
+    </script>
+
+    <script type='text/babel'>
+        function List (props){
+            return (
+                <ul>
+                    <li></li>
+                </ul>
+            )
+        }
+
+        class Todos extends React.Component {
+
+            addItem = () => {
+                e.preventDefault()
+                const name = this.input.value
+                this.input.value = ''
+
+                this.props.store.dispatch(addTodoAction({
+                    name,
+                    complete: false,
+                    id: generateId()
+                }))
+            }
+            render(){
+                return(
+                    <div>
+                        <h1>Todo List</h1>
+                        <input
+                            type='text'
+                            placeholder='Add Todo'
+                            ref={(input) => this.input = input} />
+                        <button onClick={this.addItem}>Add Todo </button>
+                        <List />
+                    </div>
+                )
+            }
+        }
+
+        class Goals extends React.Component {
+            render(){
+                return(
+                    <div>
+                        <h1>Goal List</h1>
+
+                        <List />
+                    </div>
+                )
+            }
+        }
+
+        class App extends React.Component {
+            render(){
+                return (
+                    <div>
+                        <Todos store={this.props.store} />
+                        <Goals store={this.props.store} />
+                    </div>
+                )
+            }
+        }
+
+        ReactDOM.render(
+            <App store={store} />,
+            document.getElementById('app')
+        )
     </script>
 </body>
 </html>
